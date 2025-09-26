@@ -6,8 +6,9 @@ module.exports = function (api) {
       "nativewind/babel", // ✅ NativeWind preset
     ],
     plugins: [
-      "react-native-reanimated/plugin", // required by Reanimated
-      "react-native-worklets/plugin", // needed by NativeWind/css-interop
+       // required by Reanimated
+      "react-native-worklets/plugin", 
+      // needed by NativeWind/css-interop
     ],
   };
 };
