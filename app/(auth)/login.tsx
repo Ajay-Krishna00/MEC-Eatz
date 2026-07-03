@@ -1,7 +1,8 @@
+import { apiFetch } from "@/constants/api";
 import { useAuth } from "@/context/AuthProvider";
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import React, { useState } from "react";
-import { Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Text, TextInput, TouchableOpacity, View } from "react-native";
 import "../../global.css";
 
 export default function LoginScreen() {
@@ -9,55 +10,35 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const router = useRouter();
   const { login } = useAuth();
+
   const handleLogin = async () => {
     if (!email || !password) {
-      alert("Please enter both email and password");
+      Alert.alert("Missing details", "Please enter both email and password");
       return;
     }
 
     setLoading(true);
     try {
-      // First API call - Login
-      const loginRes = await fetch("https://mec-eatz.onrender.com/api/login", {
+      const data = await apiFetch("/api/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          email: email,
-          password: password,
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
-      const loginData = await loginRes.json();
-      console.log("Login API Response:", loginData);
-
-      if (!loginRes.ok || !loginData.success) {
-        alert("Login Error: " + (loginData.message || "Unknown error"));
+      if (!data.success) {
+        Alert.alert("Login failed", data.message || "Unknown error");
         return;
       }
 
-      const profileData = loginData.user;
-      console.log(loginData);
-
-      const userData = {
-        id: profileData.id || email,
-        name: profileData.name || profileData.username || "Guest",
-        balance: profileData.balance,
-      };
-
-      console.log("User data to store:", userData);
-      await login(userData);
+      await login(data.user, data.token);
     } catch (error) {
       console.error("Login error:", error);
-      alert("Network error. Please try again.");
+      Alert.alert("Network error", "Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
   return (
     <View className="flex-1 justify-center bg-indigo-500 px-5">
       <View className="bg-white rounded-2xl p-6">
@@ -73,6 +54,7 @@ export default function LoginScreen() {
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
+            keyboardType="email-address"
             placeholder="Enter your email"
             className="border border-gray-300 rounded-lg px-3 py-2 mt-1"
           />

@@ -1,88 +1,84 @@
+import { apiFetch } from "@/constants/api";
 import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
+  ActivityIndicator,
   FlatList,
-  TouchableOpacity,
-  ActivityIndicator, // Added for loading state
-  Alert, // Added for error handling
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
-// Define a type/interface for clarity (recommended for real apps)
-// type Transaction = {
-//   id: string;
-//   price: number; // Assuming this is the main value to display
-//   date: string;
-//   // 'amount' and 'type' are ignored based on the request
-// };
+type Txn = {
+  id: string;
+  type: "ORDER" | "TOPUP";
+  price: number;
+  status: string;
+  created_at: string;
+};
 
-// --- Transaction Item Component (Revised to show Date and Price only) ---
-const TransactionItem = ({ price, date }: any) => {
-  // Use a fixed color or logic if needed, but for simplicity, we'll use one color for the price
-  const priceDisplay = `$${parseFloat(price).toFixed(2)}`;
+const formatDate = (iso: string) => {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? iso : d.toLocaleString();
+};
+
+const TransactionItem = ({ type, price, status, created_at }: Txn) => {
+  const isCredit = type === "TOPUP";
+  const label = isCredit ? "Wallet Top-up" : "Canteen Order";
+  const sign = isCredit ? "+" : "−";
+  const amountColor = isCredit ? "#16a34a" : "#dc2626";
 
   return (
-    <TouchableOpacity style={styles.itemContainer}>
+    <View style={styles.itemContainer}>
       <View style={styles.leftContent}>
-        <Text style={styles.nameText}>Transaction Price</Text>
-        <Text style={styles.dateText}>{date}</Text>
+        <Text style={styles.nameText}>{label}</Text>
+        <Text style={styles.dateText}>{formatDate(created_at)}</Text>
       </View>
       <View style={styles.rightContent}>
-        <Text style={styles.priceText}>{priceDisplay}</Text>
+        <Text style={[styles.priceText, { color: amountColor }]}>
+          {sign}₹{Number(price).toFixed(2)}
+        </Text>
+        <Text style={styles.statusText}>{status}</Text>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };
 
-// --- Main History Component ---
 const TransactionHistory = () => {
-  const [transactions, setTransactions] = useState([]);
+  const [transactions, setTransactions] = useState<Txn[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function getTransactions() {
+    (async () => {
       try {
-        const res = await fetch(
-          "https://mec-eatz.onrender.com/api/gettransactionhistory"
-          // "https://localhost:3000/api/gettransactionhistory"
-        );
-
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-
-        const data = await res.json();
-
+        const data = await apiFetch("/api/orders");
         if (!data.success) {
-          // Assuming your API sends { success: false, message: '...' } on failure
-          Alert.alert("Error", data.message || "Failed to fetch transactions.");
+          setError(data.message || "Failed to fetch transactions.");
           return;
         }
-
-        // --- Only keep date and price (and id) if necessary for the list ---
-        const processedTransactions = data.transactions.map((t: any) => ({
-          id: t.id, // Ensure id is present for keyExtractor
-          date: t.created_at,
-          price: t.price, // Assuming the price field holds the value
-        }));
-
-        setTransactions(processedTransactions);
-      } catch (error) {
-        console.error("Fetch error:", error);
-        Alert.alert("Network Error", "Could not load transaction history.");
+        setTransactions(data.transactions || []);
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setError("Could not load transaction history.");
       } finally {
         setLoading(false);
       }
-    }
-    getTransactions();
+    })();
   }, []);
 
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#4F46E5" />
         <Text style={{ marginTop: 10 }}>Loading transactions...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <Text style={{ color: "#dc2626" }}>{error}</Text>
       </View>
     );
   }
@@ -100,31 +96,17 @@ const TransactionHistory = () => {
       <Text style={styles.header}>Transaction History</Text>
       <FlatList
         data={transactions}
-        renderItem={({ item }) => (
-          <TransactionItem
-            // Only passing the two required fields
-            price={item.price}
-            date={item.date}
-          />
-        )}
-        keyExtractor={(item: any) => item.id}
+        renderItem={({ item }) => <TransactionItem {...item} />}
+        keyExtractor={(item) => item.id}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
     </View>
   );
 };
 
-// --- Stylesheet ---
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 40, // Adjust for status bar/safe area
-    backgroundColor: "#fff",
-  },
-  center: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  container: { flex: 1, paddingTop: 40, backgroundColor: "#fff" },
+  center: { justifyContent: "center", alignItems: "center" },
   header: {
     fontSize: 24,
     fontWeight: "bold",
@@ -138,34 +120,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     alignItems: "center",
   },
-  leftContent: {
-    flex: 1,
-  },
-  rightContent: {
-    marginLeft: 10,
-    alignItems: "flex-end",
-  },
-  nameText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  dateText: {
-    fontSize: 14,
+  leftContent: { flex: 1 },
+  rightContent: { marginLeft: 10, alignItems: "flex-end" },
+  nameText: { fontSize: 16, fontWeight: "600", color: "#333" },
+  dateText: { fontSize: 14, color: "#888", marginTop: 2 },
+  priceText: { fontSize: 18, fontWeight: "bold" },
+  statusText: {
+    fontSize: 12,
     color: "#888",
     marginTop: 2,
+    textTransform: "capitalize",
   },
-  priceText: {
-    // New style for price field
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#007AFF", // A neutral blue for price
-  },
-  separator: {
-    height: 1,
-    backgroundColor: "#f0f0f0",
-    marginHorizontal: 15,
-  },
+  separator: { height: 1, backgroundColor: "#f0f0f0", marginHorizontal: 15 },
 });
 
 export default TransactionHistory;

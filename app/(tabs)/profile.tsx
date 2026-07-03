@@ -1,5 +1,6 @@
 import { useAuth } from "@/context/AuthProvider";
-import React, { useEffect } from "react";
+import { useRouter } from "expo-router";
+import React from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import "../../global.css";
 
@@ -11,8 +12,10 @@ const favoriteItems = [
 
 const profile = () => {
   const { user, logout } = useAuth();
-  
+  const router = useRouter();
+
   const username = user?.name || user?.email || "Guest";
+  const isStaff = user?.role === "staff";
   const handleLogOut = async () => {
     await logout();
     console.log("User logged out");
@@ -94,6 +97,18 @@ const profile = () => {
           <Text className="text-lg text-gray-400">{">"}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Staff-only: Canteen Dashboard */}
+      {isStaff && (
+        <TouchableOpacity
+          className="bg-indigo-600 rounded-xl p-4 mx-5 mb-4 items-center shadow-lg flex-row justify-center"
+          onPress={() => router.push("/Staff/dashboard")}
+        >
+          <Text className="text-white text-lg font-bold">
+            📊 Open Canteen Dashboard
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* Logout Button */}
       <TouchableOpacity

@@ -9,6 +9,7 @@ export default function UPILayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="cart" />
+      <Stack.Screen name="pickup" />
     </Stack>
   );
 }

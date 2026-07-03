@@ -1,50 +1,42 @@
-import "../../global.css";
+import { apiFetch } from "@/constants/api";
+import { Link, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert } from "react-native";
-import { Link } from "expo-router";
+import { Alert, Text, TextInput, TouchableOpacity, View } from "react-native";
+import "../../global.css";
 
 export default function SignUpScreen() {
-  const [username, setUsername] = useState("")
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSignUp = async () => {
-    setLoading(true);
-    // const { error } = await supabase.auth.signUp({
-    //   email,
-    //   password,
-    // });
-
-    // if (error) {
-    //   Alert.alert("Sign Up Error", error.message);
-    // } else {
-    //   Alert.alert(
-    //     "Success!",
-    //     "Please check your email for a confirmation link.",
-    //   );
-    // }
-    const res = await fetch("https://mec-eatz.onrender.com/api/signup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({
-        username: username,
-        email: email,
-        password: password,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      alert("Signup Error: " + (data.message || "Unknown error"));
-    } else {
-      alert("Signup successful!");
+    if (!username || !email || !password) {
+      Alert.alert("Missing details", "Please fill in all fields");
+      return;
     }
-    setLoading(false);
+
+    setLoading(true);
+    try {
+      const data = await apiFetch("/api/signup", {
+        method: "POST",
+        body: JSON.stringify({ username, email, password }),
+      });
+
+      if (!data.success) {
+        Alert.alert("Signup failed", data.message || "Unknown error");
+        return;
+      }
+
+      Alert.alert("Success", "Account created — please log in.");
+      router.replace("/(auth)/login");
+    } catch (error) {
+      console.error("Signup error:", error);
+      Alert.alert("Network error", "Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -73,6 +65,7 @@ export default function SignUpScreen() {
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
+            keyboardType="email-address"
             placeholder="Enter your college email"
             className="border border-gray-300 rounded-lg px-3 py-2 mt-1"
           />
